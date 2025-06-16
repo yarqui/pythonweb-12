@@ -35,7 +35,8 @@ async def update_avatar_user(
     user_service: UserService = Depends(get_user_service),
 ):
 
-    avatar_url = await run_in_threadpool(upload_file, file, current_user.username)
+    contents = await file.read()
+    avatar_url = await run_in_threadpool(upload_file, contents, current_user.username)
 
     updated_user = await user_service.update_avatar_url(current_user.email, avatar_url)
 

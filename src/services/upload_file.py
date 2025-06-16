@@ -7,14 +7,13 @@ import cloudinary.uploader
 __all__ = ["upload_file"]
 
 
-def upload_file(file: UploadFile, username: str) -> str:
+def upload_file(contents: bytes, username: str) -> str:
     public_id = f"RestApp/{username}"
-    file.file.seek(0)
 
     try:
 
         result = cloudinary.uploader.upload(
-            file.file, public_id=public_id, overwrite=True
+            contents, public_id=public_id, overwrite=True
         )
         src_url = cloudinary.CloudinaryImage(public_id).build_url(
             width=250,

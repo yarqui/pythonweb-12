@@ -13,6 +13,14 @@ logger = logging.getLogger(__name__)
 
 
 class EmailService:
+    """
+    A service class for handling all email-related functionalities.
+
+    This class manages the configuration for connecting to an SMTP server
+    and provides methods for sending different types of application emails,
+    such as account verification emails.
+    """
+
     conf = ConnectionConfig(
         MAIL_USERNAME=settings.MAIL_USERNAME,
         MAIL_PASSWORD=settings.MAIL_PASSWORD,
@@ -30,7 +38,17 @@ class EmailService:
 
     async def send_verification_email(self, email: EmailStr, username: str, host: str):
         """
-        Sends an email for account verification.
+        Sends an email to a user for account verification.
+
+        This method generates a unique JWT for email verification, constructs the
+        email message using an HTML template, and sends it. It includes error
+        handling to log connection issues without crashing the parent process.
+
+        Args:
+            email (EmailStr): The recipient's email address.
+            username (str): The recipient's username, used for personalization.
+            host (str): The base URL of the application, used to construct the
+                        verification link.
         """
         try:
             token_verification = self.auth_service.create_email_token({"sub": email})

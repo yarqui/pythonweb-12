@@ -12,6 +12,25 @@ if TYPE_CHECKING:
 
 
 class Contact(IDOrmModel):
+    """
+    Represents a contact record in the database.
+
+    Each contact is associated with a specific user and contains personal
+    information such as name, email, phone number, and birthday. The email
+    is unique per user.
+
+    Attributes:
+        id (int): The primary key for the contact, inherited from IDOrmModel.
+        user_id (int): The foreign key linking to the owner user in the 'users' table.
+        first_name (str): The contact's first name.
+        last_name (str): The contact's last name.
+        email (str | None): The contact's email address. Must be unique for a given user.
+        phone_number (str | None): The contact's phone number.
+        birthday (date | None): The contact's date of birth.
+        created_at (datetime): The timestamp when the contact was created.
+        updated_at (datetime): The timestamp when the contact was last updated.
+        user (User): The ORM relationship to the parent User object.
+    """
     __tablename__ = "contacts"
     __table_args__ = (
         UniqueConstraint("user_id", "email", name="unique_contact_user_email"),

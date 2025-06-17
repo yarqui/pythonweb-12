@@ -9,7 +9,20 @@ __all__ = ["UserRepository"]
 
 
 class UserRepository:
+    """
+    A class for handling all database operations related to users.
+
+    This repository abstracts the database query logic away from the service layer,
+    providing a clean interface for all CRUD (Create, Read, Update, Delete)
+    and custom query operations for the User model.
+    """
+
     def __init__(self, session: AsyncSession):
+        """
+        Initializes the repository with a database session.
+
+        :param session: The SQLAlchemy asynchronous session.
+        """
         self.db = session
 
     async def _get_user_by_attribute(
@@ -26,17 +39,43 @@ class UserRepository:
         return user.scalar_one_or_none()
 
     async def get_user_by_id(self, user_id: int) -> User | None:
+        """
+        Retrieves a single user by their unique ID.
+
+        :param user_id: The ID of the user to retrieve.
+        :return: The User object if found, otherwise None.
+        """
         return await self._get_user_by_attribute(User.id, user_id)
 
     async def get_user_by_email(self, email: str) -> User | None:
+        """
+        Retrieves a single user by their unique email address.
+
+        :param email: The email address of the user to retrieve.
+        :return: The User object if found, otherwise None.
+        """
         return await self._get_user_by_attribute(User.email, email)
 
     async def get_user_by_username(self, username: str) -> User | None:
+        """
+        Retrieves a single user by their unique username.
+
+        :param username: The username of the user to retrieve.
+        :return: The User object if found, otherwise None.
+        """
         return await self._get_user_by_attribute(User.username, username)
 
     async def create_user(
         self, body: UserCreate, hashed_password: str, avatar_url: str | None = None
     ) -> User:
+        """
+        Creates a new user record in the database.
+
+        :param body: A Pydantic schema containing the username and email.
+        :param hashed_password: The securely hashed password for the new user.
+        :param avatar_url: An optional URL for the user's avatar.
+        :return: The newly created User object.
+        """
         new_user = User(
             username=body.username,
             email=body.email,
@@ -49,12 +88,26 @@ class UserRepository:
         return new_user
 
     async def confirm_email(self, email: str) -> None:
+        """
+        Sets the 'verified' flag to True for a user with the given email.
+
+        If no user is found with the specified email, the method does nothing.
+
+        :param email: The email of the user to verify.
+        """
         user = await self.get_user_by_email(email)
         if user:
             user.verified = True
             await self.db.commit()
 
     async def update_avatar_url(self, email: str, url: str) -> User | None:
+        """
+        Updates the avatar URL for a specific user.
+
+        :param email: The email of the user to update.
+        :param url: The new URL for the avatar.
+        :return: The updated User object if the user was found, otherwise None.
+        """
         user = await self.get_user_by_email(email)
         if user:
             user.avatar_url = url

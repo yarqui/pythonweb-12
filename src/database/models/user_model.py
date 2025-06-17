@@ -12,6 +12,26 @@ if TYPE_CHECKING:
 
 
 class User(IDOrmModel):
+    """
+    Represents a user account in the database.
+
+    This model stores user credentials for authentication (username, email, password),
+    profile information (avatar), verification status, and establishes a relationship
+    to all contacts created by this user.
+
+    Attributes:
+        id (int): The primary key for the user, inherited from IDOrmModel.
+        username (str): The user's unique username, used for login.
+        email (str): The user's unique email address, used for login and communication.
+        hashed_password (str): The user's password, securely hashed.
+        avatar_url (str | None): An optional URL to the user's profile picture.
+        verified (bool): A flag indicating if the user has verified their email address.
+        created_at (datetime): The timestamp when the user account was created.
+        updated_at (datetime): The timestamp when the user account was last updated.
+        contacts (List[Contact]): The ORM relationship to a list of Contact objects
+                                  owned by this user. The cascade option ensures that
+                                  contacts are deleted when the parent user is deleted.
+    """
     __tablename__ = "users"
 
     # User credential

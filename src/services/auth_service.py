@@ -17,6 +17,11 @@ __all__ = ["AuthService", "get_current_user"]
 
 
 class AuthService:
+    """
+    A service class responsible for all authentication-related logic,
+    including password hashing, token creation, and token decoding.
+    """
+
     # Password Hashing Setup
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -24,14 +29,33 @@ class AuthService:
     oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
+        """
+        Verifies a plain-text password against its hashed version.
+
+        :param plain_password: The plain-text password to check.
+        :param hashed_password: The stored hashed password to compare against.
+        :return: True if the passwords match, False otherwise.
+        """
         return self.pwd_context.verify(plain_password, hashed_password)
 
     def hash_password(self, password: str) -> str:
+        """
+        Hashes a plain-text password using the configured bcrypt scheme.
+
+        :param password: The plain-text password to hash.
+        :return: The resulting hashed password string.
+        """
         return self.pwd_context.hash(password)
 
     async def create_access_token(
         self, data: dict, expires_delta: Optional[timedelta] = None
     ) -> str:
+        """
+        Hashes a plain-text password using the configured bcrypt scheme.
+
+        :param password: The plain-text password to hash.
+        :return: The resulting hashed password string.
+        """
         to_encode = data.copy()
         if expires_delta:
             expire = datetime.now(timezone.utc) + expires_delta
@@ -53,6 +77,12 @@ class AuthService:
         return encoded_jwt
 
     async def create_refresh_token(self, data: dict) -> str:
+        """
+        Hashes a plain-text password using the configured bcrypt scheme.
+
+        :param password: The plain-text password to hash.
+        :return: The resulting hashed password string.
+        """
         to_encode = data.copy()
         expire = datetime.now(timezone.utc) + timedelta(
             days=settings.REFRESH_TOKEN_EXPIRE_DAYS
@@ -70,6 +100,13 @@ class AuthService:
         return encoded_jwt
 
     async def decode_refresh_token(self, refresh_token: str) -> str:
+        """
+        Decodes and validates a refresh token.
+
+        :param refresh_token: The refresh token to decode.
+        :return: The user's email address (the token's subject).
+        :raises HTTPException: If the token is invalid, expired, or has the wrong scope.
+        """
         credentials_exception = HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
@@ -95,6 +132,12 @@ class AuthService:
             raise credentials_exception from e
 
     def create_email_token(self, data: dict) -> str:
+        """
+        Creates a short-lived JWT specifically for email verification.
+
+        :param data: The payload data, typically containing the user's email.
+        :return: The encoded JWT for email verification.
+        """
         to_encode = data.copy()
         expire = datetime.now(timezone.utc) + timedelta(hours=48)
         to_encode.update({"exp": expire, "scope": "email_verification"})
@@ -104,7 +147,13 @@ class AuthService:
         return token
 
     async def decode_email_token(self, token: str) -> str:
-        """Decodes the email verification token to get the user's email."""
+        """
+        Decodes and validates an email verification token.
+
+        :param token: The verification token from the email link.
+        :return: The user's email address (the token's subject).
+        :raises HTTPException: If the token is invalid, expired, or has the wrong scope.
+        """
         try:
             payload = jwt.decode(
                 token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
@@ -134,7 +183,15 @@ class AuthService:
         self, body: OAuth2PasswordRequestForm, db: AsyncSession
     ) -> dict:
         """
-        Handles the core logic of user authentication.
+        Handles the complete user login process.
+
+        Verifies user credentials, checks for email verification, and generates access
+        and refresh tokens upon successful authentication.
+
+        :param body: The form data containing username and password.
+        :param db: The database session.
+        :return: A dictionary containing access and refresh tokens.
+        :raises HTTPException: If authentication fails or the email is not verified.
         """
         user_repo = UserRepository(db)
 
@@ -171,7 +228,18 @@ async def get_current_user(
     token: str = Depends(AuthService.oauth2_scheme),
     db: AsyncSession = Depends(get_db),
 ):
-    """Dependency to get the current authenticated user from a token."""
+    """
+    A FastAPI dependency that authenticates a user via a JWT access token.
+
+    It decodes the token, validates its scope, and fetches the corresponding user
+    from the database. If any step fails, it raises a 401 Unauthorized error.
+    Attaches the user object to the request state for rate limiting.
+
+    :param token: The JWT access token from the 'Authorization: Bearer' header.
+    :param db: The database session dependency.
+    :param request: The FastAPI request object.
+    :return: The authenticated User ORM object.
+    """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -200,13 +268,3 @@ async def get_current_user(
 
     request.state.user = user
     return user
-
-
-def create_email_token(data: dict):
-    to_encode = data.copy()
-    expire = datetime.now(UTC) + timedelta(days=7)
-    to_encode.update({"iat": datetime.now(UTC), "exp": expire})
-    token = jwt.encode(
-        to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
-    )
-    return token

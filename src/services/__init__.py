@@ -1,6 +1,6 @@
 from .contact_service import ContactService
 from .user_service import UserService
-from .auth_service import AuthService, get_current_user
+from .auth_service import AuthService, get_current_user, RoleAccessService
 from .email_service import EmailService
 from .limiter import limiter
 from .upload_file import upload_file
@@ -18,6 +18,7 @@ __all__ = [
     "AuthService",
     "UserService",
     "EmailService",
+    "RoleAccessService",
     "get_user_service",
     "get_auth_service",
     "get_current_user",

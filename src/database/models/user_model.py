@@ -3,8 +3,9 @@ from typing import List, TYPE_CHECKING
 from datetime import datetime
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import String, DateTime, func
+from sqlalchemy import String, DateTime, func, Enum
 
+from src.enums.roles import Role
 from .base_model import IDOrmModel
 
 if TYPE_CHECKING:
@@ -26,12 +27,14 @@ class User(IDOrmModel):
         hashed_password (str): The user's password, securely hashed.
         avatar_url (str | None): An optional URL to the user's profile picture.
         verified (bool): A flag indicating if the user has verified their email address.
+        role (Role): The role of the user, defaults to 'user'.
         created_at (datetime): The timestamp when the user account was created.
         updated_at (datetime): The timestamp when the user account was last updated.
         contacts (List[Contact]): The ORM relationship to a list of Contact objects
                                   owned by this user. The cascade option ensures that
                                   contacts are deleted when the parent user is deleted.
     """
+
     __tablename__ = "users"
 
     # User credential
@@ -46,6 +49,9 @@ class User(IDOrmModel):
     # User profile info
     avatar_url: Mapped[str | None] = mapped_column(String(255))
     verified: Mapped[bool] = mapped_column(default=False, nullable=False)
+    role: Mapped[Role] = mapped_column(
+        Enum(Role), default=Role.USER, nullable=False
+    )
 
     #  Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -68,4 +74,4 @@ class User(IDOrmModel):
     )
 
     def __repr__(self) -> str:
-        return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"
+        return f"<User(id={self.id}, username='{self.username}', email='{self.email}, role='{self.role.name}')>"

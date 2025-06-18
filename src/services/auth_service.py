@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import List
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 import pickle
@@ -13,9 +14,11 @@ import redis
 
 from src.conf.config import settings
 from src.database.db import get_db, get_redis_client
+from src.database.models import User
+from src.enums.roles import Role
 from src.repository import UserRepository
 
-__all__ = ["AuthService", "get_current_user"]
+__all__ = ["AuthService", "get_current_user", "RoleAccessService"]
 
 
 class AuthService:
@@ -374,3 +377,50 @@ async def get_current_user(
 
     request.state.user = user
     return user
+
+
+class RoleAccessService:
+    """
+    A dependency class for checking user role-based access.
+
+    This class is designed to be used as a FastAPI dependency. It is initialized
+    with a list of roles that are allowed to access a particular endpoint.
+
+    Attributes:
+        allowed_roles (List[Role]): A list of user roles that are permitted.
+    """
+
+    def __init__(self, allowed_roles: List[Role]):
+        """
+        Initializes the RoleAccess dependency with the permitted roles.
+
+        Args:
+            allowed_roles (List[Role]): The list of roles that are allowed to
+                                        access the endpoint.
+        """
+        self.allowed_roles = allowed_roles
+
+    async def __call__(self, current_user: User = Depends(get_current_user)) -> User:
+        """
+        Makes the class instance callable and performs the role check.
+
+        This method is executed by FastAPI's dependency injection system. It
+        retrieves the current authenticated user and checks if their role is
+        present in the `allowed_roles` list.
+
+        Args:
+            current_user (User): The authenticated user object, injected by the
+                                 `get_current_user` dependency.
+
+        Raises:
+            HTTPException (403 Forbidden): If the user's role is not in the
+                                          list of allowed roles.
+
+        Returns:
+            User: The authenticated user object if they have the required role.
+        """
+        if current_user.role not in self.allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions"
+            )
+        return current_user

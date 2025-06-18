@@ -1,19 +1,21 @@
 from fastapi import APIRouter, Depends, Request, File, UploadFile, HTTPException, status
 from fastapi.concurrency import run_in_threadpool
 
+from src.enums.roles import Role
 from src.schemas import UserResponse
-
 from src.database.models import User
-
 from src.services import (
     get_current_user,
     get_user_service,
     upload_file,
     UserService,
+    RoleAccessService,
 )
 from src.services import limiter
 
 user_router = APIRouter(prefix="/users", tags=["users"])
+
+is_admin = RoleAccessService(allowed_roles=[Role.ADMIN])
 
 
 @user_router.get(
@@ -42,7 +44,12 @@ async def get_own_profile(
     return current_user
 
 
-@user_router.patch("/avatar", response_model=UserResponse, summary="Update Avatar")
+@user_router.patch(
+    "/avatar",
+    response_model=UserResponse,
+    summary="Update Avatar",
+    dependencies=[Depends(is_admin)],
+)
 async def update_avatar_user(
     file: UploadFile = File(),
     current_user: User = Depends(get_current_user),
@@ -61,6 +68,7 @@ async def update_avatar_user(
         user_service (UserService): The dependency for user-related business logic.
 
     Raises:
+        HTTPException (403 Forbidden): If the user does not have the 'admin' role.
         HTTPException (404 Not Found): If the current authenticated user is not
                                        found in the database during the update operation.
 

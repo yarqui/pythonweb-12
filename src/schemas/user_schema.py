@@ -1,6 +1,8 @@
 from datetime import datetime
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
 
+from src.enums.roles import Role
+
 
 class UserBase(BaseModel):
     """Base schema for a user, containing shared fields."""
@@ -28,6 +30,8 @@ class UserResponse(UserBase):
 
     avatar_url: str | None = None
     created_at: datetime
+    verified: bool
+    role: Role
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     CLOUDINARY_API_NAME: str = "pythonweb10"
     CLOUDINARY_API_KEY: str = "123456789"
     CLOUDINARY_API_SECRET: str = "cloudinary_secret"
+    #Redis config
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
 
     # Override the above default settings if .env is found
     model_config = SettingsConfigDict(

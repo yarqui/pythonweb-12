@@ -1,16 +1,18 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone, UTC
+from datetime import datetime, timedelta, timezone
 from typing import Optional
+import pickle
 
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
+import redis
 
 from src.conf.config import settings
-from src.database.db import get_db
+from src.database.db import get_db, get_redis_client
 from src.repository import UserRepository
 
 __all__ = ["AuthService", "get_current_user"]
@@ -180,18 +182,30 @@ class AuthService:
             ) from e
 
     async def login_user(
-        self, body: OAuth2PasswordRequestForm, db: AsyncSession
+        self,
+        body: OAuth2PasswordRequestForm,
+        db: AsyncSession,
+        redis_client: redis.Redis,
     ) -> dict:
-        """
-        Handles the complete user login process.
+        """Authenticates a user and caches the user object upon success.
 
-        Verifies user credentials, checks for email verification, and generates access
-        and refresh tokens upon successful authentication.
+        This method handles the complete user login process. It performs the
+        following steps:
+        1.  Retrieves the user by username or email from the database.
+        2.  Verifies the provided password against the stored hash.
+        3.  Checks if the user's email has been verified.
+        4.  Caches the serialized user object in Redis for 15 minutes.
+        5.  Generates and returns JWT access and refresh tokens.
 
-        :param body: The form data containing username and password.
-        :param db: The database session.
-        :return: A dictionary containing access and refresh tokens.
-        :raises HTTPException: If authentication fails or the email is not verified.
+        Args:
+            body: An OAuth2PasswordRequestForm instance containing the user's
+                  credentials (username and password).
+            db: The SQLAlchemy asynchronous session for database access.
+            redis_client: The asynchronous Redis client for caching.
+
+        Returns:
+            A dictionary containing the access token, refresh token, and
+            token type ("bearer").
         """
         user_repo = UserRepository(db)
 
@@ -213,6 +227,9 @@ class AuthService:
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="Email not verified"
             )
 
+        await redis_client.set(f"user:{user.email}", pickle.dumps(user))
+        await redis_client.expire(f"user:{user.email}", 60 * 15)  # Cache for 15 minutes
+
         access_token = await self.create_access_token(data={"sub": user.email})
         refresh_token = await self.create_refresh_token(data={"sub": user.email})
 
@@ -227,18 +244,34 @@ async def get_current_user(
     request: Request,
     token: str = Depends(AuthService.oauth2_scheme),
     db: AsyncSession = Depends(get_db),
+    redis_client: redis.Redis = Depends(get_redis_client),
 ):
-    """
-    A FastAPI dependency that authenticates a user via a JWT access token.
+    """Authenticates a user via JWT, utilizing a cache-aside strategy.
 
-    It decodes the token, validates its scope, and fetches the corresponding user
-    from the database. If any step fails, it raises a 401 Unauthorized error.
-    Attaches the user object to the request state for rate limiting.
+    This FastAPI dependency validates a user's JWT access token and retrieves
+    the associated user object. It prioritizes fetching the user from the Redis
+    cache to reduce database load.
 
-    :param token: The JWT access token from the 'Authorization: Bearer' header.
-    :param db: The database session dependency.
-    :param request: The FastAPI request object.
-    :return: The authenticated User ORM object.
+    The authentication flow is as follows:
+    1.  Decode the JWT to extract the user's email (the subject).
+    2.  Attempt to fetch the serialized user object from the Redis cache.
+    3.  If the user is found in the cache (cache hit), it is deserialized
+        and returned.
+    4.  If the user is not in the cache (cache miss), query the database.
+    5.  If found in the database, the user object is then cached in Redis
+        for subsequent requests.
+    6.  Attaches the user object to `request.state.user` for potential use
+        in other dependencies like rate limiters.
+
+    Args:
+        request: The FastAPI Request object.
+        token: The JWT access token, automatically extracted from the
+               'Authorization: Bearer' header.
+        db: The SQLAlchemy asynchronous session dependency.
+        redis_client: The asynchronous Redis client dependency.
+
+    Returns:
+        The authenticated User ORM object.
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -260,11 +293,19 @@ async def get_current_user(
     except JWTError as e:
         raise credentials_exception from e
 
+    cached_user = await redis_client.get(f"user:{email}")
+    if cached_user:
+        user = pickle.loads(cached_user)
+        return user
+
     user_repo = UserRepository(db)
     user = await user_repo.get_user_by_email(email)
 
     if user is None:
         raise credentials_exception
+
+    await redis_client.set(f"user:{email}", pickle.dumps(user))
+    await redis_client.expire(f"user:{email}", 60 * 15)
 
     request.state.user = user
     return user

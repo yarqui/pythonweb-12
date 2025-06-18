@@ -1,9 +1,20 @@
 import contextlib
+from typing import AsyncGenerator
+
+import redis.asyncio as redis
 
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    async_sessionmaker,
+    create_async_engine,
+    AsyncSession,
+)
 
 from src.conf.config import settings
+
+
+__all__ = ["get_db", "get_redis_client"]
 
 
 class DatabaseSessionManager:
@@ -43,8 +54,12 @@ class DatabaseSessionManager:
 
 session_manager = DatabaseSessionManager(settings.SQLALCHEMY_DATABASE_URL)
 
+redis_pool = redis.ConnectionPool(
+    host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0
+)
 
-async def get_db():
+
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     FastAPI dependency that provides a database session for a single request.
 
@@ -53,3 +68,15 @@ async def get_db():
     """
     async with session_manager.session() as session:
         yield session
+
+
+async def get_redis_client() -> AsyncGenerator[redis.Redis, None]:
+    """Provides a managed Redis client from a shared connection pool.
+
+    This asynchronous generator is designed to be used as a FastAPI dependency.
+    It safely acquires a Redis client from the connection pool and ensures
+    the connection is properly released back to the pool after the request
+    is processed.
+    """
+    async with redis.Redis(connection_pool=redis_pool) as client:
+        yield client

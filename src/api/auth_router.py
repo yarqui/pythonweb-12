@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, status, Request, BackgroundTasks, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
+import redis
 
-from src.database.db import get_db
+from src.database.db import get_db, get_redis_client
 from src.schemas import UserCreate, UserResponse, TokenResponse, RequestEmail
 from src.services import (
     get_user_service,
@@ -41,9 +42,10 @@ async def login(
     body: OAuth2PasswordRequestForm = Depends(),
     auth_service: AuthService = Depends(get_auth_service),
     db: AsyncSession = Depends(get_db),
+    redis_client: redis.Redis = Depends(get_redis_client),
 ):
     """
-    Handles user login and provides access and refresh tokens.
+    Handles user login,caches the user object and provides access and refresh tokens.
 
     This endpoint authenticates a user based on a username and password submitted
     in a standard OAuth2 form. On successful authentication, it returns a JWT
@@ -52,7 +54,7 @@ async def login(
     Returns:
         A dictionary containing the access token, refresh token, and token type.
     """
-    return await auth_service.login_user(body, db)
+    return await auth_service.login_user(body, db, redis_client)
 
 
 @auth_router.get("/verified_email/{token}")

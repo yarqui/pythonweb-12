@@ -36,3 +36,16 @@ class RequestEmail(BaseModel):
     """Schema for the /request_email endpoint body."""
 
     email: EmailStr
+
+
+class PasswordResetRequest(BaseModel):
+    """Schema for the initial password reset request."""
+
+    email: EmailStr
+
+
+class ResetPasswordForm(BaseModel):
+    """Schema for the final password reset confirmation."""
+
+    token: str
+    new_password: str = Field(min_length=6, max_length=128)

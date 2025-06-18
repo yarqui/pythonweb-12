@@ -21,7 +21,8 @@ class UserRepository:
         """
         Initializes the repository with a database session.
 
-        :param session: The SQLAlchemy asynchronous session.
+        Args:
+            session: The SQLAlchemy asynchronous session.
         """
         self.db = session
 
@@ -93,12 +94,33 @@ class UserRepository:
 
         If no user is found with the specified email, the method does nothing.
 
-        :param email: The email of the user to verify.
+        Args:
+            email (str): The email of the user to verify.
         """
         user = await self.get_user_by_email(email)
         if user:
             user.verified = True
             await self.db.commit()
+
+    async def update_password(
+        self, email: str, new_hashed_password: str
+    ) -> User | None:
+        """
+        Updates the password for a user identified by their email.
+
+        Args:
+            email (str): The email of the user to update.
+            new_hashed_password (str): The new, already-hashed password.
+
+        Returns:
+            User | None: The updated User object if found, otherwise None.
+        """
+        user = await self.get_user_by_email(email)
+        if user:
+            user.hashed_password = new_hashed_password
+            await self.db.commit()
+            await self.db.refresh(user)
+        return user
 
     async def update_avatar_url(self, email: str, url: str) -> User | None:
         """

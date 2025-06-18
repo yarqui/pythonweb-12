@@ -67,3 +67,34 @@ class EmailService:
             await fm.send_message(message, template_name="verify_email.html")
         except ConnectionErrors as e:
             logger.warning("Failed to send email: %s", e)
+
+    async def send_password_reset_email(
+        self, email: EmailStr, username: str, host: str, token: str
+    ):
+        """Sends an email with a password reset link.
+
+        This method constructs and sends an HTML email containing a unique,
+        time-sensitive token for the user to reset their password.
+
+        Args:
+            email (EmailStr): The email address of the recipient.
+            username (str): The username of the recipient for personalization.
+            host (str): The base URL of the application, used to construct the link.
+            token (str): The password reset JWT.
+        """
+        try:
+            message = MessageSchema(
+                subject="Password Reset Request",
+                recipients=[email],
+                template_body={
+                    "host": host,
+                    "username": username,
+                    "token": token,
+                },
+                subtype=MessageType.html,
+            )
+
+            fm = FastMail(self.conf)
+            await fm.send_message(message, template_name="password_reset.html")
+        except ConnectionErrors as err:
+            logger.error("Failed to send password reset email: %s", err)

@@ -239,6 +239,73 @@ class AuthService:
             "token_type": "bearer",
         }
 
+    def create_password_reset_token(self, data: dict) -> str:
+        """
+        Creates a short-lived JWT specifically for password resets.
+
+        This token includes a "password_reset" scope to ensure it cannot be used
+        for other purposes, like accessing protected endpoints.
+
+        Args:
+            data: The payload data, typically containing the user's email.
+
+        Returns:
+            The encoded JWT for password reset.
+        """
+        to_encode = data.copy()
+        expire = datetime.now(timezone.utc) + timedelta(
+            minutes=settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES
+        )
+        to_encode.update(
+            {
+                "exp": expire,
+                "iat": datetime.now(timezone.utc),
+                "scope": "password_reset",
+            }
+        )
+        token = jwt.encode(
+            to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
+        )
+        return token
+
+    async def decode_password_reset_token(self, token: str) -> str:
+        """
+        Decodes and validates a password reset token.
+
+        Args:
+            token: The password reset token from the request.
+
+        Raises:
+            HTTPException if the token is invalid, expired, or has the wrong scope.
+
+        Returns:
+            The user's email address (the token's subject).
+        """
+
+        try:
+            payload = jwt.decode(
+                token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
+            )
+            if payload.get("scope") == "password_reset":
+                email = payload.get("sub")
+                if email is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail="Invalid token: missing subject",
+                    )
+                return email
+
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid scope for token",
+            )
+
+        except JWTError as e:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Invalid or expired token for password reset",
+            ) from e
+
 
 async def get_current_user(
     request: Request,
@@ -262,14 +329,12 @@ async def get_current_user(
         for subsequent requests.
     6.  Attaches the user object to `request.state.user` for potential use
         in other dependencies like rate limiters.
-
     Args:
         request: The FastAPI Request object.
         token: The JWT access token, automatically extracted from the
                'Authorization: Bearer' header.
         db: The SQLAlchemy asynchronous session dependency.
         redis_client: The asynchronous Redis client dependency.
-
     Returns:
         The authenticated User ORM object.
     """

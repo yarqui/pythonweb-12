@@ -130,6 +130,20 @@ class UserService:
         """Pass-through to confirm a user's email in the repository."""
         await self._repository.confirm_email(email)
 
+    async def reset_password(self, email: str, new_password: str) -> User | None:
+        """
+        Hashes a new password and calls the repository to update it for the user.
+
+        Args:
+            email (str): The email of the user whose password is being reset.
+            new_password (str): The new plain-text password to be hashed and saved.
+
+        Returns:
+            User | None: The updated User object if the user was found, otherwise None.
+        """
+        hashed_password = self._auth_service.hash_password(new_password)
+        return await self._repository.update_password(email, hashed_password)
+
     async def update_avatar_url(self, email: str, url: str):
         """
         Updates the avatar URL for a specific user.

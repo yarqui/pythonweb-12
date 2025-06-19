@@ -34,6 +34,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.group.dev.dependencies]
 pylint = "^3.3.7"
+sphinx = "^8.2.3"
 
 [tool.pylint.'MESSAGES CONTROL']
 disable = "missing-module-docstring, missing-class-docstring, C0116, not-callable, R0913, R0917"

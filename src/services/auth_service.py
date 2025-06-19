@@ -12,13 +12,16 @@ from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
 import redis
 
-from src.conf.config import settings
+from src.conf.config import get_settings
+
 from src.database.db import get_db, get_redis_client
 from src.database.models import User
 from src.enums.roles import Role
 from src.repository import UserRepository
 
 __all__ = ["AuthService", "get_current_user", "RoleAccessService"]
+
+settings = get_settings()
 
 
 class AuthService:
@@ -323,6 +326,7 @@ async def get_current_user(
     cache to reduce database load.
 
     The authentication flow is as follows:
+
     1.  Decode the JWT to extract the user's email (the subject).
     2.  Attempt to fetch the serialized user object from the Redis cache.
     3.  If the user is found in the cache (cache hit), it is deserialized
@@ -332,12 +336,14 @@ async def get_current_user(
         for subsequent requests.
     6.  Attaches the user object to `request.state.user` for potential use
         in other dependencies like rate limiters.
+
     Args:
         request: The FastAPI Request object.
         token: The JWT access token, automatically extracted from the
                'Authorization: Bearer' header.
         db: The SQLAlchemy asynchronous session dependency.
         redis_client: The asynchronous Redis client dependency.
+
     Returns:
         The authenticated User ORM object.
     """

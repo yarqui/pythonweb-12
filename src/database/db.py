@@ -11,10 +11,11 @@ from sqlalchemy.ext.asyncio import (
     AsyncSession,
 )
 
-from src.conf.config import settings
-
+from src.conf.config import get_settings
 
 __all__ = ["get_db", "get_redis_client"]
+
+settings = get_settings()
 
 
 class DatabaseSessionManager:

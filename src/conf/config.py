@@ -1,6 +1,9 @@
+from functools import lru_cache
 from typing import List
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+__all__ = ["get_settings"]
 
 
 class Settings(BaseSettings):
@@ -42,7 +45,7 @@ class Settings(BaseSettings):
     CLOUDINARY_API_NAME: str = "cloudinary_name"
     CLOUDINARY_API_KEY: str = "123456789"
     CLOUDINARY_API_SECRET: str = "cloudinary_secret"
-    
+
     # Redis config
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
@@ -53,4 +56,6 @@ class Settings(BaseSettings):
     )
 
 
-settings = Settings()
+@lru_cache()
+def get_settings() -> Settings:
+    return Settings()

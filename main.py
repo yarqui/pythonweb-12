@@ -10,7 +10,10 @@ from slowapi.errors import RateLimitExceeded
 
 from src.services import limiter
 from src.api import contact_router, health_router, auth_router, user_router
-from src.conf.config import settings
+from src.conf.config import get_settings
+
+settings = get_settings()
+
 
 # Configure the Cloudinary library with credentials from the settings.
 # This is done once when the application starts.

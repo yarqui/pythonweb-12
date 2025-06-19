@@ -1,10 +1,11 @@
 import logging
 from pathlib import Path
+from functools import cached_property
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 from fastapi_mail.errors import ConnectionErrors
 from pydantic import EmailStr
 
-from src.conf.config import settings
+from src.conf.config import get_settings
 from src.services.auth_service import AuthService
 
 __all__ = ["EmailService"]
@@ -21,20 +22,34 @@ class EmailService:
     such as account verification emails.
     """
 
-    conf = ConnectionConfig(
-        MAIL_USERNAME=settings.MAIL_USERNAME,
-        MAIL_PASSWORD=settings.MAIL_PASSWORD,
-        MAIL_FROM=settings.MAIL_FROM,
-        MAIL_PORT=settings.MAIL_PORT,
-        MAIL_SERVER=settings.MAIL_SERVER,
-        MAIL_FROM_NAME=settings.MAIL_FROM_NAME,
-        MAIL_STARTTLS=settings.MAIL_STARTTLS,
-        MAIL_SSL_TLS=settings.MAIL_SSL_TLS,
-        USE_CREDENTIALS=settings.USE_CREDENTIALS,
-        VALIDATE_CERTS=settings.VALIDATE_CERTS,
-        TEMPLATE_FOLDER=Path(__file__).parent / "templates",
-    )
-    auth_service = AuthService()
+    def __init__(self):
+        self._settings = get_settings()
+
+    @cached_property
+    def conf(self) -> ConnectionConfig:
+        settings = self._settings
+
+        return ConnectionConfig(
+            MAIL_USERNAME=settings.MAIL_USERNAME,
+            MAIL_PASSWORD=settings.MAIL_PASSWORD,
+            MAIL_FROM=settings.MAIL_FROM,
+            MAIL_PORT=settings.MAIL_PORT,
+            MAIL_SERVER=settings.MAIL_SERVER,
+            MAIL_FROM_NAME=settings.MAIL_FROM_NAME,
+            MAIL_STARTTLS=settings.MAIL_STARTTLS,
+            MAIL_SSL_TLS=settings.MAIL_SSL_TLS,
+            USE_CREDENTIALS=settings.USE_CREDENTIALS,
+            VALIDATE_CERTS=settings.VALIDATE_CERTS,
+            TEMPLATE_FOLDER=Path(__file__).parent / "templates",
+        )
+
+    @cached_property
+    def auth_service(self) -> AuthService:
+        return AuthService()
+
+    @cached_property
+    def mailer(self) -> FastMail:
+        return FastMail(self.conf)
 
     async def send_verification_email(self, email: EmailStr, username: str, host: str):
         """
@@ -63,8 +78,8 @@ class EmailService:
                 subtype=MessageType.html,
             )
 
-            fm = FastMail(self.conf)
-            await fm.send_message(message, template_name="verify_email.html")
+            await self.mailer.send_message(message, template_name="verify_email.html")
+
         except ConnectionErrors as e:
             logger.warning("Failed to send email: %s", e)
 
@@ -94,7 +109,7 @@ class EmailService:
                 subtype=MessageType.html,
             )
 
-            fm = FastMail(self.conf)
-            await fm.send_message(message, template_name="password_reset.html")
+            await self.mailer.send_message(message, template_name="password_reset.html")
+
         except ConnectionErrors as err:
             logger.error("Failed to send password reset email: %s", err)

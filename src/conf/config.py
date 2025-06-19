@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     VALIDATE_CERTS: bool = True
 
     # Cloudinary settings
-    CLOUDINARY_API_NAME: str = "pythonweb10"
+    CLOUDINARY_API_NAME: str = "cloudinary_name"
     CLOUDINARY_API_KEY: str = "123456789"
     CLOUDINARY_API_SECRET: str = "cloudinary_secret"
     

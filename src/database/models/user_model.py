@@ -50,7 +50,9 @@ class User(IDOrmModel):
     avatar_url: Mapped[str | None] = mapped_column(String(255))
     verified: Mapped[bool] = mapped_column(default=False, nullable=False)
     role: Mapped[Role] = mapped_column(
-        Enum(Role), default=Role.USER, nullable=False
+        Enum(Role, values_callable=lambda obj: [e.value for e in obj]),
+        default=Role.USER,
+        nullable=False,
     )
 
     #  Timestamps
@@ -74,4 +76,4 @@ class User(IDOrmModel):
     )
 
     def __repr__(self) -> str:
-        return f"<User(id={self.id}, username='{self.username}', email='{self.email}, role='{self.role.name}')>"
+        return f"<User(id={self.id}, username='{self.username}', email='{self.email}, role='{self.role.value}')>"
